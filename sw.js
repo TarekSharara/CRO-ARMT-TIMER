@@ -1,6 +1,6 @@
 /* 10m Air Rifle Mixed Team Final CRO Timer – offline service worker. Change VERSION after every update of index.html */
 const PREFIX = "armt-final-cro-";
-const VERSION = PREFIX + "v1";
+const VERSION = PREFIX + "v4";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./armt-icon-180.png", "./armt-icon-192.png", "./armt-icon-512.png"];
 
 self.addEventListener("install", e => {

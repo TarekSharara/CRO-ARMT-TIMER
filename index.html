@@ -42,10 +42,20 @@ button{font-family:inherit;border:0;cursor:pointer;touch-action:manipulation}
 #tap.run{background:#fff8c5;border-color:#d4a72c}
 #tap.over{background:#ffebe9;border-color:var(--red);animation:blink .5s steps(2) infinite}
 @keyframes blink{50%{border-color:#ffcecb}}
-.side{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:8px;width:520px;align-content:center}
+#tap.flash{animation:flash .4s steps(2) infinite}
+@keyframes flash{0%{background:#fff8c5;border-color:#d4a72c}50%{background:#ffd8b5;border-color:#bc4c00}}
+#call{display:none;width:300px;border-radius:16px;border:3px solid #0d1117;background:#fff;color:#bbb;font-weight:900;font-size:40px;line-height:1.1;text-align:center;align-items:center;justify-content:center;padding:8px}
+#call.show{display:flex}
+#call.on{color:#0d1117}
+#call.stop{background:#cf222e;border-color:#cf222e;color:#fff}
+#call.flash{animation:cflash .4s steps(2) infinite}
+@keyframes cflash{0%{background:#fff}50%{background:#ffd33d}}
+.side{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:8px;width:520px;align-content:center}
 .side [data-s="50"]{grid-column:1;grid-row:2/4;font-size:40px}
-.side [data-s="10"]{grid-column:2;grid-row:2} .side [data-s="30"]{grid-column:3;grid-row:2} .side [data-s="60"]{grid-column:4;grid-row:2}
-.side [data-s="250"]{grid-column:2;grid-row:3} .side [data-s="300"]{grid-column:3;grid-row:3} .side .stop{grid-column:4;grid-row:3}
+.side [data-s="30"]{grid-column:2;grid-row:2} .side [data-s="300"]{grid-column:3;grid-row:2} .side [data-s="250"]{grid-column:4;grid-row:2}
+.side .load{grid-column:2/4;grid-row:3} .side .stop{grid-column:4;grid-row:3}
+.side .load{background:#dafbe1;color:#116329;border-color:#1a7f37}
+.side .load.on{background:#1a7f37;color:#fff;border-color:#1a7f37}
 .ev{display:inline-flex;border:2px solid var(--blue);border-radius:8px;overflow:hidden}
 .ev button{background:#fff;color:var(--blue);font-weight:900;font-size:14px;padding:5px 12px}
 .ev button.on{background:var(--blue);color:#fff}
@@ -72,9 +82,10 @@ main{flex:1;overflow-y:auto;padding:8px 14px 30px;-webkit-overflow-scrolling:tou
 .r.now{border-color:#d4a72c;background:#fff8c5;box-shadow:0 0 0 3px rgba(212,167,44,.35);opacity:1}
 .sec.tie{color:#7d4e00}
 
+@media (min-width:621px) and (max-width:1150px){ #call{width:190px;font-size:28px} .side{width:430px} .side button{font-size:18px;white-space:nowrap;padding:0 2px} .side [data-s="50"]{font-size:32px} #tap{gap:10px} #tap .num{font-size:72px} }
 @media (max-width:620px){
   .top{padding:6px 10px} .top h1{width:100%;font-size:15px}
-  .timer{padding:8px;flex-direction:column} #tap{min-height:96px;gap:12px} #tap .num{font-size:60px} #tap .lbl{font-size:13px} #tap .lbl b{font-size:17px}
+  #call{width:100%;font-size:32px;min-height:64px} .timer{padding:8px;flex-direction:column} #tap{min-height:96px;gap:12px} #tap .num{font-size:60px} #tap .lbl{font-size:13px} #tap .lbl b{font-size:17px}
   .hint{display:none} .r.past .clk::before{content:none} .side{width:100%;gap:6px} .side button{font-size:20px;min-height:52px} .side [data-s="50"]{font-size:32px} .side button{font-size:18px;padding:0 2px;white-space:nowrap}
   main{padding:6px 8px 24px}
   .r{grid-template-columns:84px 1fr;grid-template-areas:"clk c" "t c";row-gap:2px;padding:8px 10px}
@@ -96,13 +107,13 @@ main{flex:1;overflow-y:auto;padding:8px 14px 30px;-webkit-overflow-scrolling:tou
     <span class="num" id="num">20</span>
     <span class="lbl" id="lbl"><b>TAP at READY</b>beeps for ATTENTION</span>
   </button>
+  <div id="call">—</div>
   <div class="side"><div class="ph">PRESET TIME</div>
-    <button data-s="10">10 s</button>
     <button data-s="30">30 s</button>
     <button data-s="50" class="on">50 s</button>
-    <button data-s="60">1 min</button>
     <button data-s="250">250 s</button>
     <button data-s="300">5 min</button>
+    <button class="load" id="loadBtn">LOAD</button>
     <button class="stop" onclick="stopT()">STOP</button>
   </div>
 </div>
@@ -192,7 +203,7 @@ function markNow(){
 }
 
 /* one-tap timer */
-let dur=50, t0=0, running=false, WL=null;
+let dur=50, t0=0, running=false, WL=null, LOADMODE=false;
 const END={5:"START",50:"STOP",250:"STOP",300:"STOP … UNLOAD",60:"LOAD"};
 const lab=d=>d===60?"1 min":d===300?"5 min":d+" s";
 const fmt=s=>s>=60?Math.floor(s/60)+":"+p2(s%60):String(s);
@@ -203,23 +214,51 @@ function tap(){ wake(); t0=Date.now(); running=true; draw(); }
 function stopT(){ running=false; draw(); }
 document.querySelectorAll(".side [data-s]").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll(".side [data-s]").forEach(x=>x.classList.remove("on")); b.classList.add("on");
-  dur=+b.dataset.s; running=false; draw(); }));
+  LOADMODE=false; $("loadBtn").classList.remove("on"); dur=+b.dataset.s; running=false; draw(); }));
+$("loadBtn").addEventListener("click",()=>{
+  document.querySelectorAll(".side [data-s]").forEach(x=>x.classList.remove("on")); $("loadBtn").classList.add("on");
+  LOADMODE=true; dur=50; tap(); });
 
+function callBox(txt,flash){
+  const c=$("call"); c.classList.toggle("show",dur===300||LOADMODE);
+  c.textContent=txt||"—"; c.classList.toggle("on",!!txt); c.classList.toggle("stop",/^STOP/.test(txt||"")); c.classList.toggle("flash",!!flash);
+}
 function draw(){
   const tapEl=$("tap"), num=$("num"), lbl=$("lbl");
+  if(!running) callBox("",false);
+  if(LOADMODE) return drawLoad(tapEl,num,lbl);
   if(!running){ tapEl.className=""; num.textContent=fmt(dur); lbl.innerHTML="<b>TAP to start "+lab(dur)+"</b>"+"tap here or press SPACE"; return; }
   const rem=dur*1000-(Date.now()-t0);
   if(rem>0){
     const s=Math.ceil(rem/1000);
     num.textContent = fmt(s);
     tapEl.className = rem<=3000 ? "run warn" : "run";
-    lbl.innerHTML = (dur===300 && rem<=30500 && rem>26000) ? "<b>SAY: 30 SECONDS</b>then → STOP … UNLOAD" : "<b>"+(END[dur]?"→ "+END[dur]:"running")+"</b>tap or SPACE to restart "+lab(dur);
-    
+    lbl.innerHTML = "<b>"+(END[dur]?"→ "+END[dur]:"running")+"</b>tap or SPACE to restart "+lab(dur);
+    if(dur===300){ const on=rem<=30000, fl=on&&rem>25000; callBox(on?"30 SECONDS":"",fl); if(fl) tapEl.classList.add("flash"); } else callBox("",false);
   } else {
     const o=Math.floor(-rem/1000);
     num.textContent="+"+o; tapEl.className="over";
     lbl.innerHTML="<b>"+(END[dur]||"TIME")+"!</b>tap or SPACE to restart";
-    
+    callBox(dur===300?"STOP … UNLOAD":"",false);
+  }
+}
+
+/* LOAD sequence: 5 s → START (blink 2 s) → 50 s → STOP */
+function drawLoad(tapEl,num,lbl){
+  if(!running){ callBox("",false); tapEl.className=""; num.textContent="5"; lbl.innerHTML="<b>TAP LOAD to start</b>LOAD 5 s → START → 50 s · SPACE also starts"; return; }
+  const el=Date.now()-t0;
+  if(el<5000){
+    num.textContent=Math.ceil((5000-el)/1000); tapEl.className="run";
+    lbl.innerHTML="<b>→ START</b>tap or SPACE to restart LOAD"; callBox("LOAD",false); return;
+  }
+  const rem=55000-el;
+  if(rem>0){
+    const fl=el<7000;
+    num.textContent=Math.ceil(rem/1000); tapEl.className=(rem<=3000?"run warn":"run")+(fl?" flash":"");
+    lbl.innerHTML="<b>→ STOP</b>50 s shot · tap or SPACE to restart LOAD"; callBox("START",fl);
+  } else {
+    num.textContent="+"+Math.floor(-rem/1000); tapEl.className="over";
+    lbl.innerHTML="<b>STOP!</b>tap LOAD or SPACE for the next shot"; callBox("STOP",false);
   }
 }
 
